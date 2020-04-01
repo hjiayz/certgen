@@ -37,18 +37,25 @@ fn main() {
                 .default_value("changeit")
                 .takes_value(true),
         )
-        .arg(Arg::with_name("cn").long("CN").help("Common Name"))
+        .arg(
+            Arg::with_name("cn")
+                .long("CN")
+                .help("Common Name")
+                .takes_value(true),
+        )
         .arg(
             Arg::with_name("dns")
                 .long("dns")
                 .multiple(true)
-                .help("domain"),
+                .help("domain")
+                .takes_value(true),
         )
         .arg(
             Arg::with_name("ip")
                 .long("ip")
                 .multiple(true)
-                .help("ip address"),
+                .help("ip address")
+                .takes_value(true),
         )
         .get_matches();
 
