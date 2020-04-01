@@ -61,7 +61,9 @@ fn main() {
     let dns = matches
         .values_of_lossy("dns")
         .unwrap_or_else(|| vec!["localhost".to_string()]);
-    let ip = matches.values_of_lossy("ip").unwrap_or_else(|| vec![]);
+    let ip = matches
+        .values_of_lossy("ip")
+        .unwrap_or_else(|| vec!["127.0.0.1".to_string()]);
     let cn = matches.value_of("cn").unwrap_or("localhost");
 
     gen_p12(ca_file, ca_privkey_file, p12_file, pass, dns, ip, cn);
