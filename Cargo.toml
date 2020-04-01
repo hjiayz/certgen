@@ -1,0 +1,17 @@
+[package]
+name = "certgen"
+version = "0.1.0"
+authors = ["hjiayz <hjiayz@gmail.com>"]
+edition = "2018"
+keywords = ["openssl", "cert"]
+description = "self signed cert tool"
+homepage = "https://github.com/hjiayz/certgen"
+repository = "https://github.com/hjiayz/certgen"
+readme = "README.MD"
+license = "MIT OR Apache-2.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+openssl = { git ="https://github.com/sfackler/rust-openssl.git"}
+clap = "2.33.0"
