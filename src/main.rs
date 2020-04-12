@@ -6,10 +6,12 @@
 //! generate new p12 cert for native-tls
 //!
 
-mod gen;
+mod lib;
 use clap::Arg;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
+use std::net::IpAddr;
+use std::str::FromStr;
 
 fn main() {
     let matches = clap::App::new("certgen")
@@ -38,9 +40,24 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name("c")
+                .long("C")
+                .help("Country Name")
+                .default_value("CN")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("o")
+                .long("O")
+                .help("Organization Name")
+                .default_value("Cert Gen")
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("cn")
                 .long("CN")
                 .help("Common Name")
+                .default_value("localhost")
                 .takes_value(true),
         )
         .arg(
@@ -57,13 +74,20 @@ fn main() {
                 .help("ip address")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("friendly_name")
+                .long("fn")
+                .help("Friendly Name")
+                .default_value("localhost")
+                .takes_value(true),
+        )
         .get_matches();
 
-    let ca_file = matches.value_of("ca_file").unwrap_or("ca.pem");
-    let ca_privkey_file = matches
+    let ca_file_name = matches.value_of("ca_file").unwrap_or("ca.pem");
+    let ca_privkey_file_name = matches
         .value_of("ca_privkey_file")
         .unwrap_or("ca_privkey.pem");
-    let p12_file = matches.value_of("p12_file").unwrap_or("localhost.p12");
+    let p12_file_name = matches.value_of("p12_file").unwrap_or("localhost.p12");
     let pass = matches.value_of("password").unwrap_or("changeit");
     let dns = matches
         .values_of_lossy("dns")
@@ -71,22 +95,26 @@ fn main() {
     let ip = matches
         .values_of_lossy("ip")
         .unwrap_or_else(|| vec!["127.0.0.1".to_string()]);
+
     let cn = matches.value_of("cn").unwrap_or("localhost");
+    let c = matches.value_of("c").unwrap_or("CN");
+    let o = matches.value_of("o").unwrap_or("Cert Gen");
 
-    gen_p12(ca_file, ca_privkey_file, p12_file, pass, dns, ip, cn);
-}
+    let friendly_name = matches.value_of("friendly_name").unwrap_or("localhost");
 
-fn gen_p12(
-    ca_file_name: &str,
-    ca_privkey_file_name: &str,
-    p12_file_name: &str,
-    pass: &str,
-    dns: Vec<String>,
-    ip: Vec<String>,
-    cn: &str,
-) {
-    use openssl::pkey::{PKey, Private};
-    use openssl::x509::X509;
+    let mut ip_address = vec![];
+
+    for address in ip {
+        ip_address.push(IpAddr::from_str(&address).unwrap());
+    }
+
+    let params = lib::Params {
+        domain_names: dns,
+        ip_address,
+        country: c.to_owned(),
+        organization: o.to_owned(),
+        common: cn.to_owned(),
+    };
 
     //gen ca
     if let Ok(mut ca_file) = OpenOptions::new()
@@ -94,8 +122,10 @@ fn gen_p12(
         .create_new(true)
         .open(ca_file_name)
     {
-        let (ca_cert, ca_privkey) = gen::mk_ca_cert().unwrap();
-        ca_file.write_all(&ca_cert.to_pem().unwrap()).unwrap();
+        let ca = params.ca().unwrap();
+        ca_file
+            .write_all(&ca.serialize_pem().unwrap().as_bytes())
+            .unwrap();
         let mut ca_privkey_file = OpenOptions::new()
             .write(true)
             .create(true)
@@ -103,32 +133,35 @@ fn gen_p12(
             .unwrap();
         ca_privkey_file.set_len(0).unwrap();
         ca_privkey_file
-            .write_all(&ca_privkey.private_key_to_pem_pkcs8().unwrap())
+            .write_all(&ca.serialize_private_key_pem().as_bytes())
             .unwrap();
     };
 
     //load ca
-    let ca_cert = {
+    let ca_pem = {
         let mut ca_pem = vec![];
         let mut ca_file = File::open(ca_file_name).unwrap();
         ca_file.read_to_end(&mut ca_pem).unwrap();
-        X509::from_pem(&ca_pem).unwrap()
+        String::from_utf8(ca_pem).unwrap()
     };
 
     //load ca privkey
-    let ca_privkey = {
+    let ca_privkey_pem = {
         let mut ca_privkey_pem = vec![];
         let mut ca_privkey_file = File::open(ca_privkey_file_name).unwrap();
         ca_privkey_file.read_to_end(&mut ca_privkey_pem).unwrap();
-        PKey::<Private>::private_key_from_pem(&ca_privkey_pem).unwrap()
+        String::from_utf8(ca_privkey_pem).unwrap()
     };
 
-    let p12 = gen::mk_ca_signed_cert(&ca_cert, &ca_privkey, dns, ip, pass, cn).unwrap();
+    let ca = lib::CA::from_pem(&ca_pem, &ca_privkey_pem).unwrap();
+    let cert = params.cert().unwrap();
+
+    let p12 = ca.make_pfx(&cert, pass, friendly_name).unwrap();
     let mut p12_file = OpenOptions::new()
         .write(true)
         .create(true)
         .open(p12_file_name)
         .unwrap();
     p12_file.set_len(0).unwrap();
-    p12_file.write_all(&p12.to_der().unwrap()).unwrap();
+    p12_file.write_all(&p12).unwrap();
 }
