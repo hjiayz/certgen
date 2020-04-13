@@ -4,10 +4,10 @@ version = '0.1.0'
 authors = ['hjiayz <hjiayz@gmail.com>']
 edition = '2018'
 keywords = [
-    'openssl',
+    'pkcs12',
     'cert',
 ]
-description = 'self signed cert tool'
+description = 'pkcs12 self signed cert tool'
 homepage = 'https://github.com/hjiayz/certgen'
 repository = 'https://github.com/hjiayz/certgen'
 readme = 'README.MD'
@@ -21,6 +21,8 @@ required-features = ['clap']
 [dependencies]
 p12 = '0.1.0'
 chrono = '0.4.11'
+yasna = { version = "0.3.1", features = ["bit-vec"] }
+bit-vec = "0.6.1"
 
 [dependencies.clap]
 version = '2.33.0'

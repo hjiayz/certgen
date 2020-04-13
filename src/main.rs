@@ -61,6 +61,27 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name("ca_c")
+                .long("CA_C")
+                .help("CA Country Name")
+                .default_value("CN")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("ca_o")
+                .long("CA_O")
+                .help("CA Organization Name")
+                .default_value("Cert Gen")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("ca_cn")
+                .long("CA_CN")
+                .help("CA Common Name")
+                .default_value("Cert Gen CA")
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("dns")
                 .long("dns")
                 .multiple(true)
@@ -100,6 +121,10 @@ fn main() {
     let c = matches.value_of("c").unwrap_or("CN");
     let o = matches.value_of("o").unwrap_or("Cert Gen");
 
+    let cacn = matches.value_of("ca_cn").unwrap_or("Cert Gen CA");
+    let cac = matches.value_of("ca_c").unwrap_or("CN");
+    let cao = matches.value_of("ca_o").unwrap_or("Cert Gen");
+
     let friendly_name = matches.value_of("friendly_name").unwrap_or("localhost");
 
     let mut ip_address = vec![];
@@ -107,6 +132,14 @@ fn main() {
     for address in ip {
         ip_address.push(IpAddr::from_str(&address).unwrap());
     }
+
+    let caparams = lib::Params {
+        domain_names: vec![],
+        ip_address: vec![],
+        country: cac.to_owned(),
+        organization: cao.to_owned(),
+        common: cacn.to_owned(),
+    };
 
     let params = lib::Params {
         domain_names: dns,
@@ -122,7 +155,7 @@ fn main() {
         .create_new(true)
         .open(ca_file_name)
     {
-        let ca = params.ca().unwrap();
+        let ca = caparams.ca().unwrap();
         ca_file
             .write_all(&ca.serialize_pem().unwrap().as_bytes())
             .unwrap();

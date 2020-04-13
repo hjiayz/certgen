@@ -1,17 +1,28 @@
+use chrono::Datelike;
 use core::convert::TryFrom;
 use p12::PFX;
-use rcgen::{BasicConstraints, Certificate, CertificateParams, IsCa, KeyPair, RcgenError};
+use rcgen::{
+    BasicConstraints, Certificate, CertificateParams, ExtendedKeyUsagePurpose::*, IsCa,
+    KeyIdMethod, KeyPair, RcgenError,
+};
 use std::net::IpAddr;
 
 #[derive(Debug)]
 pub enum Error {
     PFXError,
     RcgenError(RcgenError),
+    ASN1Error(yasna::ASN1Error),
 }
 
 impl From<RcgenError> for Error {
     fn from(src: RcgenError) -> Error {
         Error::RcgenError(src)
+    }
+}
+
+impl From<yasna::ASN1Error> for Error {
+    fn from(src: yasna::ASN1Error) -> Error {
+        Error::ASN1Error(src)
     }
 }
 
@@ -41,8 +52,9 @@ impl CA {
         password: &str,
         friendly_name: &str,
     ) -> Result<Vec<u8>, Error> {
-        let cert_der = self.0.serialize_der_with_signer(&cert.0)?;
+        let cert_der = cert.0.serialize_der_with_signer(&self.0)?;
         let key_der = cert.0.serialize_private_key_der();
+
         let ca_der = self.0.serialize_der()?;
         Ok(
             PFX::new(&cert_der, &key_der, Some(&ca_der), password, friendly_name)
@@ -77,13 +89,10 @@ pub struct Params {
 impl Params {
     fn build_cert_params(&self) -> CertificateParams {
         use chrono::offset::Utc;
-        use chrono::Datelike;
-        use rcgen::{
-            DistinguishedName, DnType, ExtendedKeyUsagePurpose, SanType, PKCS_ECDSA_P256_SHA256,
-        };
+        use rcgen::{DistinguishedName, DnType, SanType, PKCS_ECDSA_P256_SHA256};
         let alg = &PKCS_ECDSA_P256_SHA256;
         let not_before = Utc::now();
-        let not_after = not_before.with_year(1).unwrap();
+        let not_after = not_before.with_year(not_before.year() + 1).unwrap();
         let mut subject_alt_names = vec![];
         for dns in self.domain_names.iter() {
             subject_alt_names.push(SanType::DnsName(dns.to_owned()));
@@ -95,7 +104,7 @@ impl Params {
         distinguished_name.push(DnType::CountryName, &self.country);
         distinguished_name.push(DnType::OrganizationName, &self.organization);
         distinguished_name.push(DnType::CommonName, &self.common);
-        let extended_key_usages = vec![ExtendedKeyUsagePurpose::Any];
+        let extended_key_usages = vec![ServerAuth, ClientAuth];
         let mut params = CertificateParams::default();
         params.alg = alg;
         params.not_before = not_before;
@@ -103,10 +112,17 @@ impl Params {
         params.subject_alt_names = subject_alt_names;
         params.distinguished_name = distinguished_name;
         params.extended_key_usages = extended_key_usages;
+        params.use_authority_key_identifier_extension = true;
+        params.key_identifier_method = KeyIdMethod::Sha512;
         params
     }
     pub fn ca(&self) -> Result<CA, Error> {
-        let params = self.build_cert_params();
+        let mut params = self.build_cert_params();
+        params.not_after = params
+            .not_before
+            .with_year(params.not_before.year() + 10)
+            .unwrap();
+        params.extended_key_usages = vec![Any];
         CA::from_params(params)
     }
     pub fn cert(&self) -> Result<Cert, Error> {
