@@ -187,6 +187,7 @@ fn main() {
     };
 
     let ca = lib::CA::from_pem(&ca_pem, &ca_privkey_pem).unwrap();
+
     let cert = params.cert().unwrap();
 
     let p12 = ca.make_pfx(&cert, pass, friendly_name).unwrap();

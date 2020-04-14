@@ -11,7 +11,7 @@ use std::net::IpAddr;
 pub enum Error {
     PFXError,
     RcgenError(RcgenError),
-    ASN1Error(yasna::ASN1Error),
+    PemError(pem::PemError),
 }
 
 impl From<RcgenError> for Error {
@@ -20,19 +20,22 @@ impl From<RcgenError> for Error {
     }
 }
 
-impl From<yasna::ASN1Error> for Error {
-    fn from(src: yasna::ASN1Error) -> Error {
-        Error::ASN1Error(src)
+impl From<pem::PemError> for Error {
+    fn from(src: pem::PemError) -> Error {
+        Error::PemError(src)
     }
 }
 
-pub struct CA(Certificate);
+pub struct CA(Certificate, Option<Vec<u8>>);
 
 impl CA {
     pub fn from_pem(ca_cert: &str, ca_key: &str) -> Result<Self, Error> {
         let key = KeyPair::from_pem(ca_key)?;
         let params = CertificateParams::from_ca_cert_pem(ca_cert, key)?;
-        Self::from_params(params)
+        let ca_data = pem::parse(ca_cert)?.contents;
+        let mut result = Self::from_params(params)?;
+        result.1 = Some(ca_data);
+        Ok(result)
     }
     #[allow(dead_code)]
     pub fn from_der(ca_cert: &[u8], ca_key: &[u8]) -> Result<Self, Error> {
@@ -44,7 +47,7 @@ impl CA {
         if let IsCa::SelfSignedOnly = params.is_ca {
             params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
         }
-        Ok(CA(Certificate::from_params(params)?))
+        Ok(CA(Certificate::from_params(params)?, None))
     }
     pub fn make_pfx(
         &self,
@@ -55,15 +58,28 @@ impl CA {
         let cert_der = cert.0.serialize_der_with_signer(&self.0)?;
         let key_der = cert.0.serialize_private_key_der();
 
-        let ca_der = self.0.serialize_der()?;
+        let ca_der = self.serialize_der()?;
+
         Ok(
             PFX::new(&cert_der, &key_der, Some(&ca_der), password, friendly_name)
                 .ok_or_else(|| Error::PFXError)?
                 .to_der(),
         )
     }
+
+    pub fn serialize_der(&self) -> Result<Vec<u8>, Error> {
+        match &self.1 {
+            Some(data) => Ok(data.to_owned()),
+            None => Ok(self.0.serialize_der()?),
+        }
+    }
+
     pub fn serialize_pem(&self) -> Result<String, Error> {
-        Ok(self.0.serialize_pem()?)
+        let p = pem::Pem {
+            tag: "CERTIFICATE".to_string(),
+            contents: self.serialize_der()?,
+        };
+        Ok(pem::encode(&p))
     }
     pub fn serialize_private_key_pem(&self) -> String {
         self.0.serialize_private_key_pem()

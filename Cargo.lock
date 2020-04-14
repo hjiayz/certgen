@@ -116,12 +116,13 @@ checksum = "95e28fa049fda1c330bcf9d723be7663a899c4679724b34c81e9f5a326aab8cd"
 
 [[package]]
 name = "certgen"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bit-vec",
  "chrono",
  "clap",
  "p12",
+ "pem",
  "rcgen",
  "yasna",
 ]
@@ -302,9 +303,9 @@ checksum = "2839e79665f131bdb5782e51f2c6c9599c133c6098982a54c794358bf432529c"
 
 [[package]]
 name = "p12"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29403720ffe299c877a99dab02cdb262fed5e3b99f3baebea1860af17017cc51"
+checksum = "e911cdd19f28bb96e9d3c866154bb6a6d81349f0f72a505579e086597282a6b6"
 dependencies = [
  "block-cipher-trait",
  "block-modes",
