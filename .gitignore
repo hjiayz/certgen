@@ -3,3 +3,4 @@
 ca_privkey.pem
 ca.pem
 localhost.p12
+Cargo.lock
