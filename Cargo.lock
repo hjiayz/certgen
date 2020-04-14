@@ -302,9 +302,9 @@ checksum = "2839e79665f131bdb5782e51f2c6c9599c133c6098982a54c794358bf432529c"
 
 [[package]]
 name = "p12"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "497eba012dfa0a2bf1d55e6c4fc9c7ca889b38d6c69e2d3c1a32a6f9cf017554"
+checksum = "29403720ffe299c877a99dab02cdb262fed5e3b99f3baebea1860af17017cc51"
 dependencies = [
  "block-cipher-trait",
  "block-modes",
