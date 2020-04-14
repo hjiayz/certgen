@@ -41,7 +41,9 @@ impl CA {
     pub fn from_der(ca_cert: &[u8], ca_key: &[u8]) -> Result<Self, Error> {
         let key = KeyPair::try_from(ca_key)?;
         let params = CertificateParams::from_ca_cert_der(ca_cert, key)?;
-        Self::from_params(params)
+        let mut result = Self::from_params(params)?;
+        result.1 = Some(ca_cert.to_owned());
+        Ok(result)
     }
     pub fn from_params(mut params: CertificateParams) -> Result<Self, Error> {
         if let IsCa::SelfSignedOnly = params.is_ca {
