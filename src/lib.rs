@@ -37,7 +37,6 @@ impl CA {
         result.1 = Some(ca_data);
         Ok(result)
     }
-    #[allow(dead_code)]
     pub fn from_der(ca_cert: &[u8], ca_key: &[u8]) -> Result<Self, Error> {
         let key = KeyPair::try_from(ca_key)?;
         let params = CertificateParams::from_ca_cert_der(ca_cert, key)?;
@@ -85,6 +84,9 @@ impl CA {
     }
     pub fn serialize_private_key_pem(&self) -> String {
         self.0.serialize_private_key_pem()
+    }
+    pub fn serialize_private_key_der(&self) -> Vec<u8> {
+        self.0.serialize_private_key_der()
     }
 }
 

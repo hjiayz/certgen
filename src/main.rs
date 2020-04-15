@@ -102,6 +102,14 @@ fn main() {
                 .default_value("localhost")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("ca_file_format")
+                .long("ca_file_format")
+                .help("ca and privkey file format")
+                .possible_values(&["pem", "der"])
+                .default_value("pem")
+                .takes_value(true),
+        )
         .get_matches();
 
     let ca_file_name = matches.value_of("ca_file").unwrap_or("ca.pem");
@@ -126,6 +134,8 @@ fn main() {
     let cao = matches.value_of("ca_o").unwrap_or("Cert Gen");
 
     let friendly_name = matches.value_of("friendly_name").unwrap_or("localhost");
+
+    let format_is_pem = matches.value_of("ca_file_format").unwrap_or("pem") == "pem";
 
     let mut ip_address = vec![];
 
@@ -156,18 +166,24 @@ fn main() {
         .open(ca_file_name)
     {
         let ca = caparams.ca().unwrap();
-        ca_file
-            .write_all(&ca.serialize_pem().unwrap().as_bytes())
-            .unwrap();
+        let ca_bytes = if format_is_pem {
+            ca.serialize_pem().unwrap().into_bytes()
+        } else {
+            ca.serialize_der().unwrap()
+        };
+        ca_file.write_all(&ca_bytes).unwrap();
         let mut ca_privkey_file = OpenOptions::new()
             .write(true)
             .create(true)
             .open(ca_privkey_file_name)
             .unwrap();
         ca_privkey_file.set_len(0).unwrap();
-        ca_privkey_file
-            .write_all(&ca.serialize_private_key_pem().as_bytes())
-            .unwrap();
+        let privkey_bytes = if format_is_pem {
+            ca.serialize_private_key_pem().into_bytes()
+        } else {
+            ca.serialize_private_key_der()
+        };
+        ca_privkey_file.write_all(&privkey_bytes).unwrap();
     };
 
     //load ca
@@ -175,7 +191,7 @@ fn main() {
         let mut ca_pem = vec![];
         let mut ca_file = File::open(ca_file_name).unwrap();
         ca_file.read_to_end(&mut ca_pem).unwrap();
-        String::from_utf8(ca_pem).unwrap()
+        ca_pem
     };
 
     //load ca privkey
@@ -183,10 +199,19 @@ fn main() {
         let mut ca_privkey_pem = vec![];
         let mut ca_privkey_file = File::open(ca_privkey_file_name).unwrap();
         ca_privkey_file.read_to_end(&mut ca_privkey_pem).unwrap();
-        String::from_utf8(ca_privkey_pem).unwrap()
+        ca_privkey_pem
     };
 
-    let ca = lib::CA::from_pem(&ca_pem, &ca_privkey_pem).unwrap();
+    fn to_string(src: Vec<u8>) -> String {
+        String::from_utf8(src).unwrap()
+    }
+
+    let ca = if format_is_pem {
+        lib::CA::from_pem(&to_string(ca_pem), &to_string(ca_privkey_pem))
+    } else {
+        lib::CA::from_der(&ca_pem, &ca_privkey_pem)
+    }
+    .unwrap();
 
     let cert = params.cert().unwrap();
 
