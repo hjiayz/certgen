@@ -1,6 +1,6 @@
 [package]
 name = 'certgen'
-version = '0.1.2'
+version = '0.1.3'
 authors = ['hjiayz <hjiayz@gmail.com>']
 edition = '2018'
 keywords = [
@@ -19,7 +19,7 @@ path = 'src/main.rs'
 required-features = ['clap']
 
 [dependencies]
-p12 = '0.1.2'
+p12 = '0.1.3'
 chrono = '0.4.11'
 pem = "0.7.0"
 
